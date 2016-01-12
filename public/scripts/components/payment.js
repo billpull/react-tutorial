@@ -22,7 +22,6 @@ var PaymentSelector = React.createClass({displayName: 'PaymentSelector',
     return (
       <select onChange={this.handleSelection}>
         <option value="">Select Payment</option>
-        <option value="Cash">Pay At Restaurant</option>
         {paymentMethodOptions}
         <option value="giftcard-scheme">Add New Gift Card</option>
         <option value="creditcard-scheme">Add New Credit Card</option>
@@ -33,7 +32,13 @@ var PaymentSelector = React.createClass({displayName: 'PaymentSelector',
 
 var PaymentTipForm = React.createClass({displayName: 'PaymentTipForm',
   render: function () {
-
+    return (
+      <div>
+        <hr />
+        <h2>Add Tip</h2>
+        <PaymentSelector paymentMethods={this.props.tipMethods} />
+      </div>
+    );
   }
 });
 
@@ -105,8 +110,19 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
   loadAvailablePaymentMethods: function () {
     var data = {
         "1_1": {schemeId: 1, membershipId: 1, description: 'Visa X-1111'},
-        "1_2": {schemeId: 1, membershipId: 2, description: 'Visa X-1234'}
+        "1_2": {schemeId: 1, membershipId: 2, description: 'Visa X-1234'},
+        "Cash": {schemedId: 0, membershipId: 0, description: 'Pay At Restaurant'}
       };
+
+    if (this.state.showTip) {
+      var availableTipMethods = Object.keys(data).filter(function (paymentKey) {
+        return paymentKey !== "Cash";
+      }).map(function (paymentKey) {
+        return data[paymentKey];
+      });
+
+      this.setState({availableTipMethods: availableTipMethods});
+    }
 
     this.setState({availablePaymentMethods: data});
   },
@@ -189,8 +205,11 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
   getInitialState: function() {
     return {
       hasSplitPayments: true,
+      showTip: true,
       availablePaymentMethods: {},
       selectedPaymentMethods: {},
+      availableTipMethods: {},
+      selectedTipMethod: null,
       total: 25.75,
       remainingBalance: 25.75,
       tip: 0,
@@ -202,9 +221,17 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
     this.loadAvailablePaymentMethods();
   },
   render: function () {
+    var tipForm = React.createElement('div');
     var placeOrderButtonOptions = {};
     if (this.state.isPlaceOrderedDisabled) {
       placeOrderButtonOptions['disabled'] = 'disabled';
+    }
+
+    if (this.state.showTip && Object.keys(this.state.selectedPaymentMethods).length >= 1) {
+      tipForm = React.createElement(PaymentTipForm, {
+        tipMethods: this.state.availableTipMethods,
+        onPaymentSelected: this.handleSelectedTipMethod
+      });
     }
 
     return (
@@ -215,6 +242,8 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
           <PaymentList paymentMethods={this.state.selectedPaymentMethods}
             onAmountUpdated={this.handleUpdatedPaymentAmount}
             onPaymentRemoved={this.handlePaymentRemoved} />
+
+          {tipForm}
 
           <hr />
           <button {...placeOrderButtonOptions}>Place Order</button>
