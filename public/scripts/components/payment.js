@@ -123,12 +123,12 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
       selectedPaymentMethods = {};
     }
 
-    paymentMethod.amount = 0.00;
+    paymentMethod.amount = hasSplitPayments ? 0.00 : this.state.total;
     selectedPaymentMethods[paymentKey] = paymentMethod;
     this.setState({selectedPaymentMethods: selectedPaymentMethods});
   },
   handleSelectedTipMethod: function (paymentMethod) {
-
+    //TODO: Update display
   },
   calculateRemainingBalance: function (total, amounts) {
     var currentBalance = 0,
@@ -155,7 +155,11 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
     });
 
     remainingBalance = this.calculateRemainingBalance(totalBalance, currentAmounts);
-    this.setState({remainingBalance: remainingBalance})
+    this.setState({remainingBalance: remainingBalance});
+
+    if (remainingBalance === "$0.00") {
+      this.setState({isPlaceOrderedDisabled: false});
+    }
   },
   handleUpdatedPaymentAmount: function (paymentMethodKey, amount) {
     var selectedPaymentMethods = this.state.selectedPaymentMethods,
@@ -190,13 +194,19 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
       total: 25.75,
       remainingBalance: 25.75,
       tip: 0,
-      tipMethod: null
+      tipMethod: null,
+      isPlaceOrderedDisabled: true
     };
   },
   componentDidMount: function () {
     this.loadAvailablePaymentMethods();
   },
   render: function () {
+    var placeOrderButtonOptions = {};
+    if (this.state.isPlaceOrderedDisabled) {
+      placeOrderButtonOptions['disabled'] = 'disabled';
+    }
+
     return (
         <div className="payment-container">
           <PaymentSelector paymentMethods={this.state.availablePaymentMethods}
@@ -207,7 +217,7 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
             onPaymentRemoved={this.handlePaymentRemoved} />
 
           <hr />
-          <button>Place Order</button>
+          <button {...placeOrderButtonOptions}>Place Order</button>
           <span>Remainder Due:{this.state.remainingBalance}</span>
         </div>
       );
