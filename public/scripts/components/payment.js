@@ -3,12 +3,7 @@ var PaymentSelector = React.createClass({displayName: 'PaymentSelector',
     var paymentMethodKey = e.target.value,
         paymentMethods = this.props.paymentMethods;
 
-    if (!paymentMethods.hasOwnProperty(paymentMethodKey)) {
-      return;
-    }
-
     this.props.onPaymentSelected(paymentMethods[paymentMethodKey]);
-    e.target.value = "";
   },
   render: function () {
     var paymentMethods = this.props.paymentMethods,
@@ -30,43 +25,19 @@ var PaymentSelector = React.createClass({displayName: 'PaymentSelector',
   }
 });
 
-var PaymentTipForm = React.createClass({displayName: 'PaymentTipForm',
-  render: function () {
-    return (
-      <div>
-        <hr />
-        <h2>Add Tip</h2>
-        <PaymentSelector paymentMethods={this.props.tipMethods} />
-      </div>
-    );
-  }
-});
-
 var PaymentMethodItem = React.createClass({displayName: 'PaymentMethodItem',
-  handleAmountChange: function (e) {
-    this.props.handleAmountChange(e);
-  },
-  handleRemovePayment: function (e) {
-    this.props.handleRemovePayment(e.target.id);
-  },
-  render: function () {
-    return (
-      <li key={this.props.paymentMethodKey}>
-        <span>{this.props.paymentMethod.description}</span>
-        <label>
-          Amount
-          <input name={this.props.paymentMethodKey} type="text" defaultValue="0.00" onBlur={this.handleAmountChange} />
-        </label>
-        <div>
-          <button>Edit</button>
-          <button id={this.props.paymentMethodKey} onClick={this.handleRemovePayment}>Remove</button>
-        </div>
-      </li>
-    );
-  }
-});
+  handlePaymentMethodSelected: function (paymentMethod) {
+    var currentPaymentMethod = this.state.selectedPaymentMethod;
 
-var PaymentList = React.createClass({displayName: 'PaymentList',
+    this.setState({selectedPaymentMethod: paymentMethod}, function () {
+      if (paymentMethod === undefined) {
+        this.props.onDeSelectPayment(currentPaymentMethod);
+        return;
+      }
+
+      this.props.onPaymentSelected(paymentMethod);
+    });
+  },
   handleAmountChange: function (e) {
     var paymentMethodKey = e.target.name,
         newValue = e.target.value;
@@ -81,28 +52,101 @@ var PaymentList = React.createClass({displayName: 'PaymentList',
     e.target.value = newValue;
     this.props.onAmountUpdated(paymentMethodKey, newValue);
   },
-  handleRemovePayment: function (paymentMethodKey) {
-    this.props.onPaymentRemoved(paymentMethodKey);
+  handleRemovePayment: function (e) {
+    this.props.handleRemovePayment(e.target.id);
+  },
+  getInitialState: function () {
+    return {
+      selectedPaymentMethod: {}
+    };
   },
   render: function () {
-    var paymentMethods = this.props.paymentMethods,
-        paymentMethodKeys = Object.keys(paymentMethods),
-        paymentMethodItems = paymentMethodKeys.map(function (paymentMethodKey) {
-          var paymentMethod = paymentMethods[paymentMethodKey];
-          return (
-            <PaymentMethodItem key={paymentMethodKey}
-              paymentMethodKey={paymentMethodKey}
-              paymentMethod={paymentMethod}
-              handleAmountChange={this.handleAmountChange}
-              handleRemovePayment={this.handleRemovePayment} />
-          )
-        }.bind(this));
+    var paymentMethodControls = "";
+    if (this.state.selectedPaymentMethod &&
+        Object.keys(this.state.selectedPaymentMethod).length > 0) {
+      var paymentMethodKey = this.state.selectedPaymentMethod.schemeId + "_" + this.state.selectedPaymentMethod.membershipId;
+      var splitPaymentControls = "";
+
+      if (this.props.hasSplitPayments) {
+        splitPaymentControls = (
+          <label>
+            Amount
+            <input name={paymentMethodKey} type="text"
+              defaultValue="0.00" onBlur={this.handleAmountChange} />
+          </label>
+        );
+      }
+
+      paymentMethodControls = (
+        <div>
+          {splitPaymentControls}
+
+          <div>
+            <button>Edit</button>
+            <button id={paymentMethodKey} onClick={this.handleRemovePayment}>Remove</button>
+          </div>
+        </div>
+      );
+    }
 
     return (
-      <ul>
-        {paymentMethodItems}
-      </ul>
-    )
+      <div>
+        <PaymentSelector
+          paymentMethods={this.props.paymentMethods}
+          onPaymentSelected={this.handlePaymentMethodSelected} />
+        {paymentMethodControls}
+      </div>
+    );
+  }
+});
+
+var PaymentTipForm = React.createClass({displayName: 'PaymentTipForm',
+  updateTip: function (e) {
+    var tipValue = e.target.value;
+    console.log(tipValue);
+  },
+  updateTipPercentage: function (percentage) {
+    console.log(percentage);
+  },
+  render: function () {
+    var tipInputs = "";
+
+    var tipPercentages = (
+      <div>
+        <button onClick={this.updateTipPercentage.bind(this, 10)}>10%</button>
+        <button onClick={this.updateTipPercentage.bind(this, 15)}>15%</button>
+        <button onClick={this.updateTipPercentage.bind(this, 20)}>20%</button>
+      </div>
+    );
+
+    if (this.props.hasSplitPayments) {
+      tipInputs = (
+        <div>
+          <PaymentMethodItem
+            hasSplitPayments={this.props.hasSplitPayments}
+            paymentMethods={this.prop.tipMethods} />
+
+          {tipPercentages}
+        </div>
+      );
+    } else {
+      var tipValue: this.props.tip && this.props.tip > 0 ? this.props.tip : "0.00";
+
+      tipInputs = (
+        <div>
+          <input type="text" value={value} defaultValue="0.00" onBlur={this.updateTip} />
+          {tipPercentages}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <hr />
+        <h2>Add Tip</h2>
+        {tipInputs}
+      </div>
+    );
   }
 });
 
@@ -141,10 +185,27 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
 
     paymentMethod.amount = hasSplitPayments ? 0.00 : this.state.total;
     selectedPaymentMethods[paymentKey] = paymentMethod;
-    this.setState({selectedPaymentMethods: selectedPaymentMethods});
+    this.setState({selectedPaymentMethods: selectedPaymentMethods}, function () {
+      this.updateRemainingBalance();
+    });
+  },
+  handleDeSelectedPaymentMethod: function (paymentMethod) {
+    var selectedPaymentMethods = this.state.selectedPaymentMethods,
+        paymentKey = paymentMethod.schemeId + "_" + paymentMethod.membershipId;
+
+    if (!selectedPaymentMethods.hasOwnProperty(paymentKey)) {
+      return;
+    }
+
+    delete selectedPaymentMethods[paymentKey];
+
+    this.setState({selectedPaymentMethods: selectedPaymentMethods}, function () {
+      this.updateRemainingBalance();
+    });
   },
   handleSelectedTipMethod: function (paymentMethod) {
-    //TODO: Update display
+    paymentMethod.includesTip = true;
+    this.handleSelectedPaymentMethod(paymentMethod);
   },
   calculateRemainingBalance: function (total, amounts) {
     var currentBalance = 0,
@@ -188,8 +249,9 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
     paymentMethod = selectedPaymentMethods[paymentMethodKey];
     paymentMethod.amount = amount;
 
-    this.setState({selectedPaymentMethods: selectedPaymentMethods});
-    this.updateRemainingBalance();
+    this.setState({selectedPaymentMethods: selectedPaymentMethods}, function () {
+        this.updateRemainingBalance();
+    });
   },
   handlePaymentRemoved: function (paymentMethodKey) {
     var selectedPaymentMethods = this.state.selectedPaymentMethods;
@@ -199,12 +261,13 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
     }
 
     delete selectedPaymentMethods[paymentMethodKey];
-    this.setState({selectedPaymentMethods: selectedPaymentMethods});
-    this.updateRemainingBalance();
+    this.setState({selectedPaymentMethods: selectedPaymentMethods}, function () {
+      this.updateRemainingBalance();
+    });
   },
   getInitialState: function() {
     return {
-      hasSplitPayments: true,
+      hasSplitPayments: false,
       showTip: true,
       availablePaymentMethods: {},
       selectedPaymentMethods: {},
@@ -221,33 +284,45 @@ var Payment = React.createClass({displayName: 'PaymentContainer',
     this.loadAvailablePaymentMethods();
   },
   render: function () {
-    var tipForm = React.createElement('div');
+    var tipForm = "";
+    var remainderNotification = "";
+
     var placeOrderButtonOptions = {};
     if (this.state.isPlaceOrderedDisabled) {
       placeOrderButtonOptions['disabled'] = 'disabled';
     }
 
     if (this.state.showTip && Object.keys(this.state.selectedPaymentMethods).length >= 1) {
-      tipForm = React.createElement(PaymentTipForm, {
-        tipMethods: this.state.availableTipMethods,
-        onPaymentSelected: this.handleSelectedTipMethod
-      });
+      tipForm = (
+        <PaymentTipForm
+          tip={this.state.tip}
+          hasSplitPayments={this.state.hasSplitPayments}
+          tipMethods={this.state.availableTipMethods}
+          onPaymentSelected={this.handleSelectedTipMethod}
+          onAmountUpdated={this.handleUpdateTipAmount} />
+      );
+    }
+
+    if (this.state.hasSplitPayments) {
+      remainderNotification = (
+        <span>Remainder Due:{this.state.remainingBalance}</span>
+      );
     }
 
     return (
         <div className="payment-container">
-          <PaymentSelector paymentMethods={this.state.availablePaymentMethods}
-            onPaymentSelected={this.handleSelectedPaymentMethod} />
-
-          <PaymentList paymentMethods={this.state.selectedPaymentMethods}
-            onAmountUpdated={this.handleUpdatedPaymentAmount}
-            onPaymentRemoved={this.handlePaymentRemoved} />
+          <PaymentMethodItem
+            hasSplitPayments={this.state.hasSplitPayments}
+            paymentMethods={this.state.availablePaymentMethods}
+            onPaymentSelected={this.handleSelectedPaymentMethod}
+            onDeSelectPayment={this.handleDeSelectedPaymentMethod}
+            onAmountUpdated={this.handleUpdatedPaymentAmount} />
 
           {tipForm}
 
           <hr />
           <button {...placeOrderButtonOptions}>Place Order</button>
-          <span>Remainder Due:{this.state.remainingBalance}</span>
+          {remainderNotification}
         </div>
       );
   }
